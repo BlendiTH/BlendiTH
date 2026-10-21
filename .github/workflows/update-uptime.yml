@@ -1,0 +1,108 @@
+name: Refresh profile card uptime
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-uptime:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out profile repository
+        uses: actions/checkout@v7
+
+      - name: Update uptime text in both SVG cards
+        env:
+          GITHUB_USERNAME: BlendiTH
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import sys
+          import urllib.request
+          from datetime import date, datetime, timedelta
+          from zoneinfo import ZoneInfo
+          from pathlib import Path
+
+          username = os.environ["GITHUB_USERNAME"]
+          request = urllib.request.Request(
+              f"https://api.github.com/users/{username}",
+              headers={
+                  "Accept": "application/vnd.github+json",
+                  "User-Agent": "profile-card-uptime-refresh",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=20) as response:
+              profile = json.load(response)
+
+          tz = ZoneInfo("Europe/Helsinki")
+          created = datetime.fromisoformat(
+              profile["created_at"].replace("Z", "+00:00")
+          ).astimezone(tz).date()
+          now = datetime.now(tz).date()
+
+          years = now.year - created.year
+          months = now.month - created.month
+          days = now.day - created.day
+          if days < 0:
+              months -= 1
+              previous_month_last_day = date(now.year, now.month, 1) - timedelta(days=1)
+              days += previous_month_last_day.day
+          if months < 0:
+              years -= 1
+              months += 12
+
+          parts = []
+          if years > 0:
+              parts.append(f"{years} year{'s' if years != 1 else ''}")
+          if months > 0:
+              parts.append(f"{months} month{'s' if months != 1 else ''}")
+          parts.append(f"{days} day{'s' if days != 1 else ''}")
+          uptime = ", ".join(parts)
+
+          # Match only the Uptime row: label, dot leader, then value.
+          pattern = re.compile(
+              r'(<tspan fill="[^"]+">\. Uptime: </tspan>'
+              r'<tspan fill="[^"]+">)(\.+)(</tspan>'
+              r'<tspan fill="[^"]+">)[^<]*(</tspan>)'
+          )
+          dot_count = max(2, 58 - len("Uptime") - len(uptime) - 6)
+
+          for filename in ("dark_mode.svg", "light_mode.svg"):
+              path = Path(filename)
+              if not path.exists():
+                  sys.exit(f"Missing {filename}. Make sure both card SVGs are in the profile repo root.")
+              svg = path.read_text(encoding="utf-8")
+
+              def replacement(match):
+                  return (
+                      match.group(1)
+                      + "." * dot_count
+                      + match.group(3)
+                      + " " + uptime
+                      + match.group(4)
+                  )
+
+              updated, count = pattern.subn(replacement, svg, count=1)
+              if count != 1:
+                  sys.exit(f"Could not find the expected Uptime row in {filename}; no files will be committed.")
+              path.write_text(updated, encoding="utf-8")
+              print(f"Updated {filename}: {uptime}")
+          PY
+
+      - name: Commit changes if uptime changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add dark_mode.svg light_mode.svg
+          if git diff --cached --quiet; then
+            echo "Uptime has not changed; nothing to commit."
+          else
+            git commit -m "chore: refresh profile card uptime"
+            git push
+          fi

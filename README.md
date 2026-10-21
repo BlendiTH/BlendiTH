@@ -3,3 +3,7 @@
   <source media="(prefers-color-scheme: light)" srcset="light_mode.svg" />
   <img alt="BlendiTH's GitHub profile" src="dark_mode.svg" />
 </picture>
+
+<div align="center">
+  <sub>memento vivere.</sub>
+</div>

@@ -16,33 +16,19 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Update uptime text in both SVG cards
-        env:
-          GITHUB_USERNAME: BlendiTH
         run: |
           python3 - <<'PY'
-          import json
-          import os
           import re
           import sys
-          import urllib.request
           from datetime import date, datetime, timedelta
-          from zoneinfo import ZoneInfo
           from pathlib import Path
-
-          username = os.environ["GITHUB_USERNAME"]
-          request = urllib.request.Request(
-              f"https://api.github.com/users/{username}",
-              headers={
-                  "Accept": "application/vnd.github+json",
-                  "User-Agent": "profile-card-uptime-refresh",
-              },
-          )
-          with urllib.request.urlopen(request, timeout=20) as response:
-              profile = json.load(response)
+          from zoneinfo import ZoneInfo
 
           tz = ZoneInfo("Europe/Helsinki")
+          # Paste your exact "created_at" value from https://api.github.com/users/BlendiTH
+          created_at = "2024-09-24T12:31:50Z"
           created = datetime.fromisoformat(
-              profile["created_at"].replace("Z", "+00:00")
+              created_at.replace("Z", "+00:00")
           ).astimezone(tz).date()
           now = datetime.now(tz).date()
 

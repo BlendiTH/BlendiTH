@@ -2,7 +2,7 @@ name: Refresh profile card uptime
 
 on:
   schedule:
-    - cron: "17 6 * * *"
+    - cron: "00 6 * * *"
   workflow_dispatch:
 
 permissions:
@@ -25,7 +25,6 @@ jobs:
           from zoneinfo import ZoneInfo
 
           tz = ZoneInfo("Europe/Helsinki")
-          # Paste your exact "created_at" value from https://api.github.com/users/BlendiTH
           created_at = "2024-09-24T12:31:50Z"
           created = datetime.fromisoformat(
               created_at.replace("Z", "+00:00")
